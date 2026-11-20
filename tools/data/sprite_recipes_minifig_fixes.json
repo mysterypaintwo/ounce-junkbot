@@ -1,0 +1,296 @@
+{
+ "minifig_die_1": [
+  "MINIFIG_DEAD_GENERIC_1_s1",
+  "MINIFIG_DEAD_GENERIC_1_s2",
+  "MINIFIG_DEAD_GENERIC_1_s3",
+  "MINIFIG_DEAD_GENERIC_1_s4"
+ ],
+ "minifig_die_10": [
+  "MINIFIG_DEAD_GENERIC_10_s1",
+  "MINIFIG_DEAD_GENERIC_10_s2",
+  "MINIFIG_DEAD_GENERIC_10_s3",
+  "MINIFIG_DEAD_GENERIC_10_s4"
+ ],
+ "minifig_die_2": [
+  "MINIFIG_DEAD_GENERIC_2_s1",
+  "MINIFIG_DEAD_GENERIC_2_s2",
+  "MINIFIG_DEAD_GENERIC_2_s3",
+  "MINIFIG_DEAD_GENERIC_2_s4"
+ ],
+ "minifig_die_3": [
+  "MINIFIG_DEAD_GENERIC_3_s1",
+  "MINIFIG_DEAD_GENERIC_3_s2",
+  "MINIFIG_DEAD_GENERIC_3_s3",
+  "MINIFIG_DEAD_GENERIC_3_s4"
+ ],
+ "minifig_die_4": [
+  "MINIFIG_DEAD_GENERIC_4_s1",
+  "MINIFIG_DEAD_GENERIC_4_s2",
+  "MINIFIG_DEAD_GENERIC_4_s3",
+  "MINIFIG_DEAD_GENERIC_4_s4"
+ ],
+ "minifig_die_7": [
+  "MINIFIG_DEAD_GENERIC_7_s1",
+  "MINIFIG_DEAD_GENERIC_7_s2",
+  "MINIFIG_DEAD_GENERIC_7_s3",
+  "MINIFIG_DEAD_GENERIC_7_s4"
+ ],
+ "minifig_die_8": [
+  "MINIFIG_DEAD_GENERIC_8_s1",
+  "MINIFIG_DEAD_GENERIC_8_s2",
+  "MINIFIG_DEAD_GENERIC_8_s3",
+  "MINIFIG_DEAD_GENERIC_8_s4"
+ ],
+ "minifig_die_9": [
+  "MINIFIG_DEAD_GENERIC_9_s1",
+  "MINIFIG_DEAD_GENERIC_9_s2",
+  "MINIFIG_DEAD_GENERIC_9_s3",
+  "MINIFIG_DEAD_GENERIC_9_s4"
+ ],
+ "minifig_eat_start_1": [
+  "MINIFIG_EAT_R_1_s1",
+  "MINIFIG_EAT_R_1_s2",
+  "MINIFIG_EAT_R_1_s3",
+  "MINIFIG_EAT_R_1_s4"
+ ],
+ "minifig_eat_start_10": [
+  "MINIFIG_EAT_R_10_s1",
+  "MINIFIG_EAT_R_10_s2",
+  "MINIFIG_EAT_R_10_s3",
+  "MINIFIG_EAT_R_10_s4"
+ ],
+ "minifig_eat_start_11": [
+  "MINIFIG_EAT_R_11_s1",
+  "MINIFIG_EAT_R_11_s2",
+  "MINIFIG_EAT_R_11_s3",
+  "MINIFIG_EAT_R_11_s4"
+ ],
+ "minifig_eat_start_12": [
+  "MINIFIG_EAT_R_12_s1",
+  "MINIFIG_EAT_R_12_s2",
+  "MINIFIG_EAT_R_12_s3",
+  "MINIFIG_EAT_R_12_s4"
+ ],
+ "minifig_eat_start_13": [
+  "MINIFIG_EAT_R_13_s1",
+  "MINIFIG_EAT_R_13_s2",
+  "MINIFIG_EAT_R_13_s3",
+  "MINIFIG_EAT_R_13_s4"
+ ],
+ "minifig_eat_start_14": [
+  "MINIFIG_EAT_R_14_s1",
+  "MINIFIG_EAT_R_14_s2",
+  "MINIFIG_EAT_R_14_s3",
+  "MINIFIG_EAT_R_14_s4"
+ ],
+ "minifig_eat_start_15": [
+  "MINIFIG_EAT_R_15_s1",
+  "MINIFIG_EAT_R_15_s2",
+  "MINIFIG_EAT_R_15_s3",
+  "MINIFIG_EAT_R_15_s4"
+ ],
+ "minifig_eat_start_16": [
+  "MINIFIG_EAT_R_16_s1",
+  "MINIFIG_EAT_R_16_s2",
+  "MINIFIG_EAT_R_16_s3",
+  "MINIFIG_EAT_R_16_s4"
+ ],
+ "minifig_eat_start_17": [
+  "MINIFIG_EAT_R_17_s1",
+  "MINIFIG_EAT_R_17_s2",
+  "MINIFIG_EAT_R_17_s3",
+  "MINIFIG_EAT_R_17_s4"
+ ],
+ "minifig_eat_start_2": [
+  "MINIFIG_EAT_R_2_s1",
+  "MINIFIG_EAT_R_2_s2",
+  "MINIFIG_EAT_R_2_s3",
+  "MINIFIG_EAT_R_2_s4"
+ ],
+ "minifig_eat_start_3": [
+  "MINIFIG_EAT_R_3_s1",
+  "MINIFIG_EAT_R_3_s2",
+  "MINIFIG_EAT_R_3_s3",
+  "MINIFIG_EAT_R_3_s4"
+ ],
+ "minifig_eat_start_4": [
+  "MINIFIG_EAT_R_4_s1",
+  "MINIFIG_EAT_R_4_s2",
+  "MINIFIG_EAT_R_4_s3",
+  "MINIFIG_EAT_R_4_s4"
+ ],
+ "minifig_eat_start_5": [
+  "MINIFIG_EAT_R_5_s1",
+  "MINIFIG_EAT_R_5_s2",
+  "MINIFIG_EAT_R_5_s3",
+  "MINIFIG_EAT_R_5_s4"
+ ],
+ "minifig_eat_start_6": [
+  "MINIFIG_EAT_R_6_s1",
+  "MINIFIG_EAT_R_6_s2",
+  "MINIFIG_EAT_R_6_s3",
+  "MINIFIG_EAT_R_6_s4"
+ ],
+ "minifig_eat_start_7": [
+  "MINIFIG_EAT_R_7_s1",
+  "MINIFIG_EAT_R_7_s2",
+  "MINIFIG_EAT_R_7_s3",
+  "MINIFIG_EAT_R_7_s4"
+ ],
+ "minifig_eat_start_8": [
+  "MINIFIG_EAT_R_8_s1",
+  "MINIFIG_EAT_R_8_s2",
+  "MINIFIG_EAT_R_8_s3",
+  "MINIFIG_EAT_R_8_s4"
+ ],
+ "minifig_eat_start_9": [
+  "MINIFIG_EAT_R_9_s1",
+  "MINIFIG_EAT_R_9_s2",
+  "MINIFIG_EAT_R_9_s3",
+  "MINIFIG_EAT_R_9_s4"
+ ],
+ "minifig_walk_l_3": [
+  "MINIFIG_walk_l_3_s1",
+  "MINIFIG_walk_l_3_s2",
+  "MINIFIG_walk_l_3_s3",
+  "MINIFIG_walk_l_3_s4"
+ ],
+ "minifig_walk_l_4": [
+  "MINIFIG_walk_l_4_s1",
+  "MINIFIG_walk_l_4_s2",
+  "MINIFIG_walk_l_4_s3",
+  "MINIFIG_walk_l_4_s4"
+ ],
+ "minifig_walk_l_6": [
+  "MINIFIG_walk_l_6_s1",
+  "MINIFIG_walk_l_6_s2",
+  "MINIFIG_walk_l_6_s3",
+  "MINIFIG_walk_l_6_s4"
+ ],
+ "minifig_walk_l_7": [
+  "MINIFIG_walk_l_7_s1",
+  "MINIFIG_walk_l_7_s2",
+  "MINIFIG_walk_l_7_s3",
+  "MINIFIG_walk_l_7_s4"
+ ],
+ "minifig_walk_l_8": [
+  "MINIFIG_walk_l_8_s1",
+  "MINIFIG_walk_l_8_s2",
+  "MINIFIG_walk_l_8_s3",
+  "MINIFIG_walk_l_8_s4"
+ ],
+ "minifig_walk_r_10": [
+  "MINIFIG_WALK_R_10_s1",
+  "MINIFIG_WALK_R_10_s2",
+  "MINIFIG_WALK_R_10_s3",
+  "MINIFIG_WALK_R_10_s4"
+ ],
+ "minifig_walk_r_2": [
+  "MINIFIG_WALK_R_2_s1",
+  "MINIFIG_WALK_R_2_s2",
+  "MINIFIG_WALK_R_2_s3",
+  "MINIFIG_WALK_R_2_s4"
+ ],
+ "minifig_walk_r_3": [
+  "MINIFIG_WALK_R_3_s1",
+  "MINIFIG_WALK_R_3_s2",
+  "MINIFIG_WALK_R_3_s3",
+  "MINIFIG_WALK_R_3_s4"
+ ],
+ "minifig_walk_r_4": [
+  "MINIFIG_WALK_R_4_s1",
+  "MINIFIG_WALK_R_4_s2",
+  "MINIFIG_WALK_R_4_s3",
+  "MINIFIG_WALK_R_4_s4"
+ ],
+ "minifig_walk_r_5": [
+  "MINIFIG_WALK_R_5_s1",
+  "MINIFIG_WALK_R_5_s2",
+  "MINIFIG_WALK_R_5_s3",
+  "MINIFIG_WALK_R_5_s4"
+ ],
+ "minifig_walk_r_6": [
+  "MINIFIG_WALK_R_6_s1",
+  "MINIFIG_WALK_R_6_s2",
+  "MINIFIG_WALK_R_6_s3",
+  "MINIFIG_WALK_R_6_s4"
+ ],
+ "minifig_walk_r_7": [
+  "MINIFIG_WALK_R_7_s1",
+  "MINIFIG_WALK_R_7_s2",
+  "MINIFIG_WALK_R_7_s3",
+  "MINIFIG_WALK_R_7_s4"
+ ],
+ "minifig_walk_r_8": [
+  "MINIFIG_WALK_R_8_s1",
+  "MINIFIG_WALK_R_8_s2",
+  "MINIFIG_WALK_R_8_s3",
+  "MINIFIG_WALK_R_8_s4"
+ ],
+ "minifig_walk_r_9": [
+  "MINIFIG_WALK_R_9_s1",
+  "MINIFIG_WALK_R_9_s2",
+  "MINIFIG_WALK_R_9_s3",
+  "MINIFIG_WALK_R_9_s4"
+ ],
+ "minifig_water_die_1": [
+  "MINIFIG_DEAD_DRIP_1_s1",
+  "MINIFIG_DEAD_DRIP_1_s2",
+  "MINIFIG_DEAD_DRIP_1_s3",
+  "MINIFIG_DEAD_DRIP_1_s4"
+ ],
+ "minifig_water_die_10": [
+  "MINIFIG_DEAD_DRIP_10_s1",
+  "MINIFIG_DEAD_DRIP_10_s2",
+  "MINIFIG_DEAD_DRIP_10_s3",
+  "MINIFIG_DEAD_DRIP_10_s4"
+ ],
+ "minifig_water_die_2": [
+  "MINIFIG_DEAD_DRIP_2_s1",
+  "MINIFIG_DEAD_DRIP_2_s2",
+  "MINIFIG_DEAD_DRIP_2_s3",
+  "MINIFIG_DEAD_DRIP_2_s4"
+ ],
+ "minifig_water_die_3": [
+  "MINIFIG_DEAD_DRIP_3_s1",
+  "MINIFIG_DEAD_DRIP_3_s2",
+  "MINIFIG_DEAD_DRIP_3_s3",
+  "MINIFIG_DEAD_DRIP_3_s4"
+ ],
+ "minifig_water_die_4": [
+  "MINIFIG_DEAD_DRIP_4_s1",
+  "MINIFIG_DEAD_DRIP_4_s2",
+  "MINIFIG_DEAD_DRIP_4_s3",
+  "MINIFIG_DEAD_DRIP_4_s4"
+ ],
+ "minifig_water_die_5": [
+  "MINIFIG_DEAD_DRIP_5_s1",
+  "MINIFIG_DEAD_DRIP_5_s2",
+  "MINIFIG_DEAD_DRIP_5_s3",
+  "MINIFIG_DEAD_DRIP_5_s4"
+ ],
+ "minifig_water_die_6": [
+  "MINIFIG_DEAD_DRIP_6_s1",
+  "MINIFIG_DEAD_DRIP_6_s2",
+  "MINIFIG_DEAD_DRIP_6_s3",
+  "MINIFIG_DEAD_DRIP_6_s4"
+ ],
+ "minifig_water_die_7": [
+  "MINIFIG_DEAD_DRIP_7_s1",
+  "MINIFIG_DEAD_DRIP_7_s2",
+  "MINIFIG_DEAD_DRIP_7_s3",
+  "MINIFIG_DEAD_DRIP_7_s4"
+ ],
+ "minifig_water_die_8": [
+  "MINIFIG_DEAD_DRIP_8_s1",
+  "MINIFIG_DEAD_DRIP_8_s2",
+  "MINIFIG_DEAD_DRIP_8_s3",
+  "MINIFIG_DEAD_DRIP_8_s4"
+ ],
+ "minifig_water_die_9": [
+  "MINIFIG_DEAD_DRIP_9_s1",
+  "MINIFIG_DEAD_DRIP_9_s2",
+  "MINIFIG_DEAD_DRIP_9_s3",
+  "MINIFIG_DEAD_DRIP_9_s4"
+ ]
+}

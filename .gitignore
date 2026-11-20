@@ -1,0 +1,41 @@
+# Build outputs
+build/
+*.nro
+*.zip
+*.elf
+*.map
+*.nacp
+*.d
+icon.png
+
+# Generated assets (rebuild from original sources)
+romfs/
+.asset-cache/
+include/jb_offsets.h
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Runtime logs and local tools
+*.log
+*.tmp
+*.bak
+*.orig
+*.rej
+.venv/
+venv/
+*.code-workspace
+
+# macOS / Windows / editor noise
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo
+.idea/
+.vscode/
