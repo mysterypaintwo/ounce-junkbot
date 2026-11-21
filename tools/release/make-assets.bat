@@ -125,7 +125,9 @@ echo Downloading ffmpeg...
 call :download "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" "%FFMPEGZIP%"
 if errorlevel 1 exit /b 1
 echo Unpacking ffmpeg...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "param([string]$z,[string]$d) Expand-Archive -Path $z -DestinationPath $d -Force" "%FFMPEGZIP%" "%LOCALFFMPEG%"
+set "DL_ZIP=%FFMPEGZIP%"
+set "DL_DIR=%LOCALFFMPEG%"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; Expand-Archive -Path $env:DL_ZIP -DestinationPath $env:DL_DIR -Force -ErrorAction Stop"
 if errorlevel 1 exit /b 1
 set "FFMPEGBIN="
 for /r "%LOCALFFMPEG%" %%F in (ffmpeg.exe) do set "FFMPEGBIN=%%~dpF"
@@ -155,5 +157,8 @@ set "PATH=%LOCALGIT%\cmd;%PATH%"
 exit /b 0
 
 :download
-powershell -NoProfile -ExecutionPolicy Bypass -Command "param([string]$u,[string]$o) [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri $u -OutFile $o -UseBasicParsing" "%~1" "%~2"
+if exist "%~2" del /q "%~2"
+set "DL_URL=%~1"
+set "DL_OUT=%~2"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri $env:DL_URL -OutFile $env:DL_OUT -UseBasicParsing -ErrorAction Stop"
 exit /b %ERRORLEVEL%
