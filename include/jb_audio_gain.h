@@ -26,7 +26,7 @@ typedef struct {
 
 static const JBAudioGain s_audioGains[JB_AUDIO_GAIN_COUNT] = {
     /* Sound effects (SFX bus: 100%). */
-    { "turn1.wav",            0.00f },
+    { "turn1.wav",           -3.00f },   /* Junkbot wall turn */
     { "blockpickup.wav",      0.00f },
     { "blockdrop.wav",        0.00f },
     { "blockclick.wav",       0.00f },

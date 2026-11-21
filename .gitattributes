@@ -1,4 +1,5 @@
 * text=auto eol=lf
+*.bat text eol=crlf
 
 # Binary assets tracked by git-lfs.
 *.ttf   filter=lfs diff=lfs merge=lfs -text
@@ -12,3 +13,4 @@
 *.mp3   filter=lfs diff=lfs merge=lfs -text
 *.dir   filter=lfs diff=lfs merge=lfs -text
 *.bin   filter=lfs diff=lfs merge=lfs -text
+*.otr   filter=lfs diff=lfs merge=lfs -text

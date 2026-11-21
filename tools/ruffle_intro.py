@@ -10,9 +10,9 @@ upscales them 2x with nearest-neighbour, keeping every source pixel exact.
 Usage:
     python3 tools/ruffle_intro.py <intro.swf> <out-dir> [exporter-path]
 
-The exporter can also be supplied with RUFFLE_EXPORTER. Build it from the
-ruffle-rs/ruffle repository with:
-    cargo build --release --package=exporter
+The exporter can be supplied with RUFFLE_EXPORTER. The release generator builds
+and caches it automatically (or downloads it with --ruffle-exporter-url); when
+using this tool directly, place ruffle-exporter on PATH or set RUFFLE_EXPORTER.
 """
 
 from __future__ import annotations

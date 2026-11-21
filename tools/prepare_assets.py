@@ -14,16 +14,13 @@ list of names the renderer expects.  The bundled UI TTF is temporary.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
 import shutil
-import struct
 import subprocess
 import tempfile
 import wave
-from io import BytesIO
 from collections import deque
 from pathlib import Path
 
@@ -37,8 +34,17 @@ from music_timing import load_music_timings
 HERE = Path(__file__).resolve().parent.parent
 TOOLS = HERE / "tools"
 DATA = TOOLS / "data"
-ROMFS = HERE / "romfs"
+ROMFS = Path(os.environ.get("ROMFS_OUT", str(HERE / "romfs"))).resolve()
 CACHE = HERE / ".asset-cache"
+
+
+def romfs_display(path: Path) -> Path:
+    """Print generated paths as romfs/... even when ROMFS_OUT is temporary."""
+    try:
+        return Path("romfs") / path.relative_to(ROMFS)
+    except ValueError:
+        return path
+
 
 SFX_FILES = {
     "turn1": "turn1", "blockpickup": "blockpickup", "blockdrop": "blockdrop",
@@ -161,6 +167,22 @@ def title_lookup_key(title: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", title.lower())
 
 
+def level_internal_title(path: Path) -> str:
+    """Read the [info] title; the file name is not always the level name.
+
+    JakeSteam's repo stores "Gotcha" as Gearbots.txt, for example. Indexing the
+    internal title is what lets the 60-level listing resolve against that tree.
+    """
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    for line in text.splitlines():
+        if line.strip().lower().startswith("title="):
+            return line.split("=", 1)[1].strip()
+    return ""
+
+
 def load_points(path: Path) -> dict[str, dict[str, int]]:
     if not path.exists():
         return {}
@@ -235,6 +257,22 @@ class Source:
         self.level_order: list[str] = []
         self.points: dict[str, dict[str, int]] = {}
 
+    def add_level_dir(self, path: Path | None) -> None:
+        """Supplement missing levels from a second level tree.
+
+        setdefault() means the user's primary source always wins; only titles
+        it does not contain are filled from the fallback tree.
+        """
+        if not path or not path.is_dir():
+            return
+        for level in path.glob("*.txt"):
+            for title in (level.stem.strip(), level_internal_title(level)):
+                if not title:
+                    continue
+                self.levels.setdefault(title_key(title), level)
+                self.levels.setdefault(title, level)
+                self.levels.setdefault(title_lookup_key(title), level)
+
     @classmethod
     def detect(cls) -> "Source":
         env_dir = os.environ.get("JUNKBOT_DIR")
@@ -298,9 +336,14 @@ class Source:
                 elif kind == "sound" and target.suffix in (".wav", ".mp3"):
                     prefer_audio(source.sounds, audio_key(name), target)
                 elif kind == "level":
-                    source.levels.setdefault(title_key(name), target)
-                    source.levels.setdefault(name.strip(), target)
-                    source.levels.setdefault(title_lookup_key(name), target)
+                    for title in (name.strip(), level_internal_title(target)):
+                        if not title:
+                            continue
+                        source.levels.setdefault(title_key(title), target)
+                        source.levels.setdefault(title, target)
+                        source.levels.setdefault(title_lookup_key(title), target)
+        source.add_level_dir(Path(os.environ["JUNKBOT_LEVELS"]).resolve()
+                             if os.environ.get("JUNKBOT_LEVELS") else None)
         return source
 
     @classmethod
@@ -314,9 +357,15 @@ class Source:
         for audio in list(path.rglob("*.wav")) + list(path.rglob("*.mp3")):
             prefer_audio(source.sounds, audio_key(audio.name), audio)
         for level in (path / "files/levels").glob("*.txt"):
-            source.levels.setdefault(title_key(level.stem), level)
-            source.levels.setdefault(level.stem.strip(), level)
-            source.levels.setdefault(title_lookup_key(level.stem), level)
+            titles = (level.stem.strip(), level_internal_title(level))
+            for title in titles:
+                if not title:
+                    continue
+                source.levels.setdefault(title_key(title), level)
+                source.levels.setdefault(title, level)
+                source.levels.setdefault(title_lookup_key(title), level)
+        source.add_level_dir(Path(os.environ["JUNKBOT_LEVELS"]).resolve()
+                             if os.environ.get("JUNKBOT_LEVELS") else None)
         return source
 
 
@@ -467,7 +516,7 @@ def pack_recipe_atlas(name: str, recipes: dict, source: Source,
     if not images:
         Image.new("RGBA", (1, 1), (0, 0, 0, 0)).save(out_png)
         out_tsv.write_text("")
-        print(f"{out_tsv.relative_to(HERE)}: 0/{len(recipes)} frames (no original sources)")
+        print(f"{romfs_display(out_tsv)}: 0/{len(recipes)} frames (no original sources)")
         return
 
     pad = 1
@@ -495,7 +544,7 @@ def pack_recipe_atlas(name: str, recipes: dict, source: Source,
             px, py, width, height = rects[frame_name]
             lines.append(f"{frame_name}\t{px}\t{py}\t{width}\t{height}")
     out_tsv.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
-    print(f"{out_tsv.relative_to(HERE)}: {len(images)}/{len(recipes)} frames")
+    print(f"{romfs_display(out_tsv)}: {len(images)}/{len(recipes)} frames")
 
 
 def decode_mono_pcm(input_path: Path, rate: int,
@@ -910,14 +959,17 @@ def prepare_levels(source: Source) -> None:
         line.strip() for line in (DATA / "level_listing.txt").read_text().splitlines()
         if line.strip()]
     used = 0
+    missing = []
     for title in listing:
         path = (source.levels.get(title_key(title)) or source.levels.get(title) or
                 source.levels.get(title_lookup_key(title)))
         if not path:
-            print(f"level not found in source: {title}")
+            missing.append(title)
             continue
         shutil.copy2(path, levels_out / f"{title}.txt")
         used += 1
+    if missing:
+        raise SystemExit("level(s) missing from source: " + ", ".join(missing))
     (levels_out / "_LEVEL_LISTING.txt").write_text(
         "\n".join(listing) + "\n", encoding="utf-8")
     shutil.copy2(DATA / "Title Screen.txt", levels_out / "Title Screen.txt")
@@ -990,113 +1042,40 @@ def prepare_menus(source: Source) -> None:
 
 
 def prepare_intro() -> None:
-    """Render the original intro SWF into a flipbook atlas.
+    """Render the intro SWF with the Ruffle exporter only.
 
-    Prefers Ruffle's exporter (accurate timeline, gradients and colour
-    transforms) rendering native 200x200 frames with no resampling. Falls back
-    to a checked-in pre-render when the exporter is unavailable, and only to the
-    old swfrender simulator if that pre-render is missing. Duplicate frames are
-    collapsed and a 480-entry sequence restores the original 15 fps timing.
+    The old swfrender display-list simulator produced wrong colours, gradients
+    and text, so it is deliberately not a fallback. If the source includes an
+    intro but the exporter is missing, generation fails with setup instructions;
+    pass --skip-intro (or SKIP_INTRO=1) to omit the cinematic instead.
     """
     out = ROMFS / "intro"
+    if os.environ.get("SKIP_INTRO") == "1":
+        print("intro: skipped (--skip-intro)")
+        return
     code_dir = Path(os.environ["JUNKBOT_CODE"]).resolve() if os.environ.get(
         "JUNKBOT_CODE") else HERE.parent / "junkbot-code"
-    swf = code_dir / "files/loading/intro_anim.swf"
+    swf = (Path(os.environ["INTRO_SWF"]).resolve()
+           if os.environ.get("INTRO_SWF")
+           else code_dir / "files/loading/intro_anim.swf")
     if not swf.exists():
         print("intro: no intro_anim.swf in original source (flipbook skipped)")
         return
 
-    # Preferred pipeline: Ruffle actually emulates the Flash timeline and
-    # rasterises vectors/gradients/colour transforms properly. The old
-    # swfrender + display-list simulator produced solid wrong-colour regions.
     ruffle = os.environ.get("RUFFLE_EXPORTER") or shutil.which("ruffle-exporter")
-    if ruffle and Path(ruffle).exists():
-        result = subprocess.run(
-            ["python3", str(TOOLS / "ruffle_intro.py"), str(swf), str(out), ruffle],
-            capture_output=True, text=True)
-        if result.returncode == 0:
-            print(result.stdout.strip())
-            return
-        print(f"intro: Ruffle export failed, falling back: {result.stderr[-200:]}")
-    elif (HERE / "assets/intro/ruffle.txt").exists():
-        # Never regenerate the low-quality swfrender atlas just because the
-        # Ruffle exporter isn't installed: use the checked-in pre-render.
-        stored = HERE / "assets/intro"
-        out.mkdir(parents=True, exist_ok=True)
-        for name in ("atlas.png", "atlas.tsv", "seq.bin", "ruffle.txt"):
-            shutil.copy2(stored / name, out / name)
-        seq_count = len((out / "seq.bin").read_bytes()) // 2
-        lines = (out / "atlas.tsv").read_text().splitlines()
-        print(f"intro: {len(lines)} unique flipbook frames, {seq_count} steps (pre-rendered Ruffle)")
-        return
-
-    if shutil.which("swfrender") is None:
-        print("intro: swfrender not installed (flipbook skipped)")
-        return
-
-    with tempfile.TemporaryDirectory(prefix="jb_intro_") as tmp:
-        frames_dir = Path(tmp) / "frames"
-        result = subprocess.run(
-            ["python3", str(TOOLS / "swf_frames.py"), str(swf), str(frames_dir),
-             "--start", "1", "--end", "480", "--step", "1"],
-            capture_output=True, text=True)
-        frames = sorted(frames_dir.glob("*.png")) if frames_dir.exists() else []
-        if result.returncode != 0 or len(frames) != 480:
-            print(f"intro: frame render failed ({len(frames)}/480): "
-                  f"{result.stderr[-200:]}")
-            return
-
-        unique: list[bytes] = []
-        lookup: dict[bytes, int] = {}
-        sequence = bytearray()
-        for path in frames:
-            raw = path.read_bytes()
-            digest = hashlib.sha256(raw).digest()
-            if digest not in lookup:
-                lookup[digest] = len(unique)
-                unique.append(raw)
-            sequence += struct.pack("<H", lookup[digest])
-
-        cols = 16
-        pad = 2
-        stride = 200 + pad * 2
-        rows = (len(unique) + cols - 1) // cols
-        atlas = Image.new("RGBA", (cols * stride, rows * stride), (0, 0, 0, 0))
-        lines = []
-        for i, raw in enumerate(unique):
-            with Image.open(BytesIO(raw)) as source_image:
-                image = source_image.convert("RGBA")
-            cell_x = (i % cols) * stride
-            cell_y = (i // cols) * stride
-            x, y = cell_x + pad, cell_y + pad
-            # Replicate the outer pixels into the gutter, including corners.
-            # Stretching an edge row across the full cell stride slightly
-            # resamples it and made the top/bottom cel edges shimmer; each edge
-            # must be copied at its exact 200px length instead.
-            expanded = Image.new("RGBA", (stride, stride), (0, 0, 0, 0))
-            expanded.paste(image, (pad, pad))
-            expanded.paste(image.crop((0, 0, 1, 200)).resize((pad, 200), Image.Resampling.NEAREST),
-                           (0, pad))
-            expanded.paste(image.crop((199, 0, 200, 200)).resize((pad, 200), Image.Resampling.NEAREST),
-                           (200 + pad, pad))
-            expanded.paste(image.crop((0, 0, 200, 1)).resize((200, pad), Image.Resampling.NEAREST),
-                           (pad, 0))
-            expanded.paste(image.crop((0, 199, 200, 200)).resize((200, pad), Image.Resampling.NEAREST),
-                           (pad, 200 + pad))
-            for sx, sy, dx, dy in ((0, 0, 0, 0),
-                                   (199, 0, 200 + pad, 0),
-                                   (0, 199, 0, 200 + pad),
-                                   (199, 199, 200 + pad, 200 + pad)):
-                expanded.paste(image.getpixel((sx, sy)),
-                               (dx, dy, dx + pad, dy + pad))
-            atlas.paste(expanded, (cell_x, cell_y))
-            lines.append(f"intro_{i:04d}\t{x}\t{y}\t200\t200\n")
-
-    out.mkdir(parents=True, exist_ok=True)
-    atlas.save(out / "atlas.png")
-    (out / "atlas.tsv").write_text("".join(lines))
-    (out / "seq.bin").write_bytes(sequence)
-    print(f"intro: {len(unique)} unique flipbook frames, 480 steps")
+    if not ruffle or not Path(ruffle).exists():
+        raise SystemExit(
+            "intro_anim.swf is present but no Ruffle exporter is available.\n"
+            "The release generator provisions one automatically. When using\n"
+            "these tools directly, set RUFFLE_EXPORTER=/path/to/exporter or\n"
+            "put ruffle-exporter on PATH. Pass --skip-intro to omit it.")
+    result = subprocess.run(
+        ["python3", str(TOOLS / "ruffle_intro.py"), str(swf), str(out), ruffle],
+        capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit(f"intro: Ruffle export failed: "
+                         f"{result.stderr[-400:] or result.stdout[-400:]}")
+    print(result.stdout.strip())
 
 
 def main() -> None:
@@ -1129,7 +1108,7 @@ def main() -> None:
     prepare_levels(source)
     prepare_audio(source)
     emit_offsets()
-    print(f"assets ready in {ROMFS.relative_to(HERE)}")
+    print(f"assets ready in {romfs_display(ROMFS)}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "assets.h"
 #include "jb_music_timing.h"
 #include "log.h"
 
@@ -10,37 +11,37 @@
 #include <string.h>
 
 static const char *s_paths[SFX_COUNT] = {
-    [SFX_TURN] = "romfs:/audio/sound-effects/turn1.wav",
-    [SFX_BLOCK_PICKUP] = "romfs:/audio/sound-effects/blockpickup.wav",
-    [SFX_BLOCK_DROP] = "romfs:/audio/sound-effects/blockdrop.wav",
-    [SFX_BLOCK_CLICK] = "romfs:/audio/sound-effects/blockclick.wav",
-    [SFX_BUTTON_CLICK] = "romfs:/audio/sound-effects/h_button1.wav",
-    [SFX_FALL] = "romfs:/audio/sound-effects/fall.wav",
-    [SFX_HEAD_BONK] = "romfs:/audio/sound-effects/headbonk1.wav",
-    [SFX_COLLECT_BIN] = "romfs:/audio/sound-effects/eat1.wav",
-    [SFX_COLLECT_BIN2] = "romfs:/audio/sound-effects/garbage1.wav",
-    [SFX_SWITCH_CLICK] = "romfs:/audio/sound-effects/switch_click.wav",
-    [SFX_SWITCH_ON] = "romfs:/audio/sound-effects/switch_on.wav",
-    [SFX_SWITCH_OFF] = "romfs:/audio/sound-effects/switch_off.wav",
-    [SFX_DEATH_FIRE] = "romfs:/audio/sound-effects/fire.wav",
-    [SFX_DEATH_WATER] = "romfs:/audio/sound-effects/electricity1.wav",
-    [SFX_DEATH_LASER] = "romfs:/audio/sound-effects/undercover/laser_hit.wav",
-    [SFX_DEATH_BOT] = "romfs:/audio/sound-effects/robottouch4.wav",
-    [SFX_GET_SHIELD] = "romfs:/audio/sound-effects/shieldon2.wav",
-    [SFX_GET_POWERUP] = "romfs:/audio/sound-effects/h_powerup1.wav",
-    [SFX_LOSE_POWERUP] = "romfs:/audio/sound-effects/h_powerdown3.wav",
-    [SFX_TELEPORT] = "romfs:/audio/sound-effects/undercover/teleport.wav",
-    [SFX_YEAH] = "romfs:/audio/sound-effects/voice_ohyeah.wav",
-    [SFX_OUCH] = "romfs:/audio/sound-effects/voice_ouch.wav",
-    [SFX_UHOH] = "romfs:/audio/sound-effects/voice_uhoh.wav",
-    [SFX_JUMP] = "romfs:/audio/sound-effects/jump3.wav",
-    [SFX_FAN] = "romfs:/audio/sound-effects/fan.wav",
-    [SFX_DRIP0] = "romfs:/audio/sound-effects/drip1.wav",
-    [SFX_DRIP1] = "romfs:/audio/sound-effects/drip2.wav",
-    [SFX_DRIP2] = "romfs:/audio/sound-effects/drip3.wav",
-    [SFX_MENU_MOVE] = "romfs:/audio/sound-effects/turn1.wav",
-    [SFX_REJECT] = "romfs:/audio/sound-effects/headbonk1.wav",
-    [SFX_TAB_SWITCH] = "romfs:/audio/sound-effects/h_powerup3.wav",
+    [SFX_TURN] = "audio/sound-effects/turn1.wav",
+    [SFX_BLOCK_PICKUP] = "audio/sound-effects/blockpickup.wav",
+    [SFX_BLOCK_DROP] = "audio/sound-effects/blockdrop.wav",
+    [SFX_BLOCK_CLICK] = "audio/sound-effects/blockclick.wav",
+    [SFX_BUTTON_CLICK] = "audio/sound-effects/h_button1.wav",
+    [SFX_FALL] = "audio/sound-effects/fall.wav",
+    [SFX_HEAD_BONK] = "audio/sound-effects/headbonk1.wav",
+    [SFX_COLLECT_BIN] = "audio/sound-effects/eat1.wav",
+    [SFX_COLLECT_BIN2] = "audio/sound-effects/garbage1.wav",
+    [SFX_SWITCH_CLICK] = "audio/sound-effects/switch_click.wav",
+    [SFX_SWITCH_ON] = "audio/sound-effects/switch_on.wav",
+    [SFX_SWITCH_OFF] = "audio/sound-effects/switch_off.wav",
+    [SFX_DEATH_FIRE] = "audio/sound-effects/fire.wav",
+    [SFX_DEATH_WATER] = "audio/sound-effects/electricity1.wav",
+    [SFX_DEATH_LASER] = "audio/sound-effects/undercover/laser_hit.wav",
+    [SFX_DEATH_BOT] = "audio/sound-effects/robottouch4.wav",
+    [SFX_GET_SHIELD] = "audio/sound-effects/shieldon2.wav",
+    [SFX_GET_POWERUP] = "audio/sound-effects/h_powerup1.wav",
+    [SFX_LOSE_POWERUP] = "audio/sound-effects/h_powerdown3.wav",
+    [SFX_TELEPORT] = "audio/sound-effects/undercover/teleport.wav",
+    [SFX_YEAH] = "audio/sound-effects/voice_ohyeah.wav",
+    [SFX_OUCH] = "audio/sound-effects/voice_ouch.wav",
+    [SFX_UHOH] = "audio/sound-effects/voice_uhoh.wav",
+    [SFX_JUMP] = "audio/sound-effects/jump3.wav",
+    [SFX_FAN] = "audio/sound-effects/fan.wav",
+    [SFX_DRIP0] = "audio/sound-effects/drip1.wav",
+    [SFX_DRIP1] = "audio/sound-effects/drip2.wav",
+    [SFX_DRIP2] = "audio/sound-effects/drip3.wav",
+    [SFX_MENU_MOVE] = "audio/sound-effects/turn1.wav",
+    [SFX_REJECT] = "audio/sound-effects/headbonk1.wav",
+    [SFX_TAB_SWITCH] = "audio/sound-effects/h_powerup3.wav",
 };
 
 /* Playlist entries are filenames into the trimmed music cache. The original
@@ -153,13 +154,79 @@ static int find_track(const char *file) {
     return -1;
 }
 
+static bool has_audio_extension(const char *name) {
+    static const char *const extensions[] = { ".ogg", ".mp3", ".wav", NULL };
+    size_t len = strlen(name);
+    for (int i = 0; extensions[i]; i++) {
+        size_t extLen = strlen(extensions[i]);
+        if (len >= extLen &&
+            strcasecmp(name + len - extLen, extensions[i]) == 0) return true;
+    }
+    return false;
+}
+
+/* `base` may already carry an extension (the timing table uses ".ogg"), so try
+   it verbatim first and only then fall back to the other formats. Appending an
+   extension unconditionally would ask for "song.ogg.ogg" and silently leave
+   the whole music cache empty. */
+static Mix_Music *load_music_asset(const char *base) {
+    static const char *const extensions[] = { ".ogg", ".mp3", ".wav", NULL };
+    char candidates[4][320];
+    char stem[300];
+    int count = 0;
+
+    if (has_audio_extension(base)) {
+        const char *dot = strrchr(base, '.');
+        size_t stemLen = (size_t)(dot - base);
+        if (stemLen >= sizeof(stem)) stemLen = sizeof(stem) - 1;
+        memcpy(stem, base, stemLen);
+        stem[stemLen] = '\0';
+        snprintf(candidates[count++], sizeof(candidates[0]), "%s", base);
+        for (int i = 0; extensions[i]; i++) {
+            if (strcasecmp(dot, extensions[i]) != 0)
+                snprintf(candidates[count++], sizeof(candidates[0]), "%s%s",
+                         stem, extensions[i]);
+        }
+    } else {
+        for (int i = 0; extensions[i]; i++)
+            snprintf(candidates[count++], sizeof(candidates[0]), "%s%s",
+                     base, extensions[i]);
+    }
+
+    for (int i = 0; i < count; i++) {
+        SDL_RWops *rw = assets_open_rw(candidates[i]);
+        if (!rw) continue;
+        Mix_Music *music = Mix_LoadMUS_RW(rw, 1);
+        if (music) return music;
+        LOG("music decode failed: %s: %s", candidates[i], Mix_GetError());
+    }
+    return NULL;
+}
+
+static Mix_Chunk *load_sound_asset(const char *path) {
+    char mp3Path[256];
+    snprintf(mp3Path, sizeof(mp3Path), "%s", path);
+    size_t len = strlen(mp3Path);
+    if (len > 4 && strcasecmp(mp3Path + len - 4, ".wav") == 0)
+        memcpy(mp3Path + len - 4, ".mp3", 5);
+    for (int attempt = 0; attempt < 2; attempt++) {
+        const char *candidate = attempt == 0 ? path : mp3Path;
+        if (attempt == 1 && strcmp(candidate, path) == 0) break;
+        SDL_RWops *rw = assets_open_rw(candidate);
+        if (!rw) continue;
+        Mix_Chunk *chunk = Mix_LoadWAV_RW(rw, 1);
+        if (chunk) return chunk;
+        LOG("sound decode failed: %s: %s", candidate, Mix_GetError());
+    }
+    return NULL;
+}
+
 static bool load_music_cache(void) {
     char path[256];
     int loaded = 0;
     for (int i = 0; i < JB_MUSIC_TIMING_COUNT; i++) {
-        snprintf(path, sizeof(path), "romfs:/audio/music/%s",
-                 s_musicTiming[i].file);
-        s_musicCache[i] = Mix_LoadMUS(path);
+        snprintf(path, sizeof(path), "audio/music/%s", s_musicTiming[i].file);
+        s_musicCache[i] = load_music_asset(path);
         s_musicCacheReady[i] = s_musicCache[i] != NULL;
         if (s_musicCacheReady[i]) loaded++;
         else LOG("music cache FAILED: %s: %s", path, Mix_GetError());
@@ -421,7 +488,7 @@ void audio_exit(void) {
 void audio_play(SoundID id) {
     if (!s_ready || s_muted || id < 0 || id >= SFX_COUNT) return;
     if (!s_chunks[id]) {
-        s_chunks[id] = Mix_LoadWAV(s_paths[id]);
+        s_chunks[id] = load_sound_asset(s_paths[id]);
         if (!s_chunks[id]) return;
         if (id == SFX_MENU_MOVE) Mix_VolumeChunk(s_chunks[id], MENU_MOVE_VOLUME);
         if (id == SFX_REJECT) Mix_VolumeChunk(s_chunks[id], REJECT_VOLUME);
@@ -540,9 +607,8 @@ void audio_jukebox_queue_track(int track) {
    before the new playlist is initialised, not merely stopped. */
 static void refresh_music_cache(int track) {
     char path[256];
-    snprintf(path, sizeof(path), "romfs:/audio/music/%s",
-             s_musicTiming[track].file);
-    Mix_Music *fresh = Mix_LoadMUS(path);
+    snprintf(path, sizeof(path), "audio/music/%s", s_musicTiming[track].file);
+    Mix_Music *fresh = load_music_asset(path);
     if (!fresh) {
         LOG("jukebox refresh FAILED: %s: %s", path, Mix_GetError());
         return;
@@ -562,10 +628,13 @@ void audio_jukebox_play_group(int first, int last, int playlist) {
        playlist lines with refill-at-5, forever. The playlist only names this
        group's segments, so nothing can bleed in from a neighbouring set. */
     audio_music_stop();
-    /* audio_music_stop() clears the scheduler and detaches the active music;
-       also reload the first segment so no decoder state from the previous song
-       survives into it. */
-    refresh_music_cache(first);
+    /* audio_music_stop() clears the scheduler and detaches the active music.
+       Reload every cached segment in this group so no decoder state from the
+       previous song survives the jump back to the group's first segment. L is
+       deliberately different: it calls audio_music_stop() and plays only the
+       exact highlighted segment. */
+    for (int track = first; track <= last; track++)
+        refresh_music_cache(track);
     s_jukeboxMode = true;
     s_jukeboxAdvance = true;
     s_jukeboxGroupSequence = true;

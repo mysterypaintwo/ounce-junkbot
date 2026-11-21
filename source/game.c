@@ -1,4 +1,5 @@
 #include "game.h"
+#include "assets.h"
 #include "audio.h"
 #include "render.h"
 
@@ -136,18 +137,10 @@ static char *trim(char *s) {
 }
 
 static char *read_text_file(const char *path, long *outLen) {
-    FILE *f = fopen(path, "rb");
-    if (!f) return NULL;
-    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return NULL; }
-    long len = ftell(f);
-    if (len < 0) { fclose(f); return NULL; }
-    rewind(f);
-    char *buf = malloc((size_t)len + 1);
-    if (!buf) { fclose(f); return NULL; }
-    if (fread(buf, 1, (size_t)len, f) != (size_t)len) { free(buf); fclose(f); return NULL; }
-    fclose(f);
-    buf[len] = 0;
-    if (outLen) *outLen = len;
+    size_t size = 0;
+    char *buf = (char *)assets_read(path, &size);
+    if (!buf) return NULL;
+    if (outLen) *outLen = (long)size;
     return buf;
 }
 
@@ -161,7 +154,7 @@ static void normalize_title(const char *src, char *dst, size_t dstSize) {
 
 int game_scan_levels(void) {
     g_levelCount = 0;
-    char *text = read_text_file("romfs:/levels/_LEVEL_LISTING.txt", NULL);
+    char *text = read_text_file("levels/_LEVEL_LISTING.txt", NULL);
     if (!text) return 0;
     char *save = NULL;
     for (char *line = strtok_r(skip_bom(text), "\r\n", &save); line; line = strtok_r(NULL, "\r\n", &save)) {
@@ -178,25 +171,26 @@ int game_scan_levels(void) {
 static bool find_level_file(const char *title, char *out, size_t outSize) {
     char wanted[256];
     normalize_title(title, wanted, sizeof(wanted));
-    DIR *dir = opendir("romfs:/levels");
-    if (!dir) return false;
-    struct dirent *ent;
+    char **names = NULL;
+    int count = assets_list("levels/", &names);
     bool found = false;
-    while ((ent = readdir(dir))) {
-        const char *name = ent->d_name;
-        size_t len = strlen(name);
-        if (len < 4 || strcasecmp(name + len - 4, ".txt") != 0) continue;
-        char base[256];
-        snprintf(base, sizeof(base), "%.*s", (int)(len - 4), name);
+    for (int i = 0; i < count; i++) {
+        const char *name = names[i];
+        const char *slash = strrchr(name, '/');
+        const char *base = slash ? slash + 1 : name;
+        size_t len = strlen(base);
+        if (len < 4 || strcasecmp(base + len - 4, ".txt") != 0) continue;
+        char stripped[256];
+        snprintf(stripped, sizeof(stripped), "%.*s", (int)(len - 4), base);
         char normalized[256];
-        normalize_title(base, normalized, sizeof(normalized));
+        normalize_title(stripped, normalized, sizeof(normalized));
         if (strcmp(normalized, wanted) == 0) {
-            snprintf(out, outSize, "romfs:/levels/%s", name);
+            snprintf(out, outSize, "%s", name);
             found = true;
             break;
         }
     }
-    closedir(dir);
+    assets_list_free(names, count);
     return found;
 }
 

@@ -1,5 +1,10 @@
 # Build outputs
-build/
+/build/
+/release/
+junkbot-release/
+.junkbot-code/
+.janitorial-android/
+.ruffle-exporter/
 *.nro
 *.zip
 *.elf
@@ -8,14 +13,22 @@ build/
 *.d
 icon.png
 
-# Generated assets (rebuild from original sources)
+# Generated assets (rebuilt from the user's own sources)
 romfs/
 .asset-cache/
+junkbot.otr
+*.otr
+assets/intro/
+include/jb_palettes.h
+include/jb_asset_names.h
 include/jb_offsets.h
 
 # Python caches
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Runtime logs and local tools
 *.log

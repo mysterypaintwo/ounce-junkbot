@@ -1,11 +1,15 @@
 #include <switch.h>
 
 #include <SDL.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
+#include "assets.h"
 #include "audio.h"
+#include "dirprep.h"
 #include "game.h"
 #include "log.h"
 #include "render.h"
@@ -2434,8 +2438,111 @@ static void finish_asset_loading(void) {
     }
 }
 
+static void remove_tree(const char *path) {
+    DIR *dir = opendir(path);
+    if (!dir) { remove(path); return; }
+    struct dirent *ent;
+    while ((ent = readdir(dir)) != NULL) {
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
+        char child[1024];
+        snprintf(child, sizeof(child), "%s/%s", path, ent->d_name);
+        struct stat st;
+        if (stat(child, &st) == 0 && S_ISDIR(st.st_mode)) remove_tree(child);
+        else remove(child);
+    }
+    closedir(dir);
+    remove(path);
+}
+
+static void prep_progress(const char *stage, int done, int total, void *user) {
+    (void)user;
+    if (total > 0 && (done == 0 || done == total || done % 200 == 0))
+        LOG("prep: %s (%d/%d)", stage, done, total);
+}
+
+static void show_missing_assets(SDL_Renderer *renderer) {
+    PadState pad;
+    padInitializeAny(&pad);
+    while (appletMainLoop()) {
+        padUpdate(&pad);
+        if (padGetButtonsDown(&pad) & (HidNpadButton_Plus | HidNpadButton_A)) break;
+        SDL_SetRenderTarget(renderer, s_frame);
+        SDL_SetRenderDrawColor(renderer, 18, 20, 28, 255);
+        SDL_RenderClear(renderer);
+        if (g_res.font) {
+            render_text(renderer, g_res.font, "ASSET PACKAGE MISSING",
+                        JB_SCREEN_W / 2, 170, WHITE, true);
+            render_text(renderer, g_res.font,
+                        "Put junkbot.otr beside junkbot.nro",
+                        JB_SCREEN_W / 2, 230, YELLOW, true);
+            render_text(renderer, g_res.font,
+                        "Or put junkbot.dir there for one-time prep",
+                        JB_SCREEN_W / 2, 262, WHITE, true);
+            const char *detail = assets_error();
+            if (detail && *detail)
+                render_text(renderer, g_res.font, detail,
+                            JB_SCREEN_W / 2, 294, YELLOW, true);
+            render_text(renderer, g_res.font, "Press + to exit",
+                        JB_SCREEN_W / 2, 350, WHITE, true);
+        }
+        SDL_SetRenderTarget(renderer, NULL);
+        if (s_frame) SDL_RenderCopy(renderer, s_frame, NULL, NULL);
+        SDL_RenderPresent(renderer);
+    }
+}
+
+static bool run_onconsole_prep(const char *arg0) {
+    if (assets_has_package()) return false;
+
+    static const char *dirCandidates[] = {
+        NULL, /* filled with assets_dir_path() below */
+        JB_DIR_FILENAME,
+        "sdmc:/switch/junkbot/" JB_DIR_FILENAME,
+        NULL
+    };
+    dirCandidates[0] = assets_dir_path();
+    const char *dirPath = NULL;
+    for (int i = 0; dirCandidates[i]; i++) {
+        FILE *dirFile = fopen(dirCandidates[i], "rb");
+        if (dirFile) {
+            fclose(dirFile);
+            dirPath = dirCandidates[i];
+            break;
+        }
+    }
+    if (!dirPath) return false;
+
+    const char *packagePath = assets_package_path();
+    const char *stage = "sdmc:/switch/junkbot/otr-stage";
+    remove_tree(stage);
+    mkdir("sdmc:/switch/junkbot", 0777);
+    mkdir(stage, 0777);
+
+    char error[256] = {0};
+    LOG("on-console prep: extracting %s", dirPath);
+    if (!dirprep_extract(dirPath, stage, prep_progress, NULL,
+                         error, sizeof(error))) {
+        LOG("on-console prep FAILED: %s", error);
+        return false;
+    }
+    if (!otr_pack_directory(stage, packagePath, "dir:on-console",
+                            error, sizeof(error))) {
+        LOG("on-console package FAILED: %s", error);
+        return false;
+    }
+    remove_tree(stage);
+    if (remove(dirPath) == 0)
+        LOG("on-console prep complete; removed %s", dirPath);
+    else
+        LOG("on-console prep complete; could not remove %s", dirPath);
+    assets_exit();
+    assets_init(arg0);
+    return assets_has_package();
+}
+
 int main(int argc, char **argv) {
-    (void)argc; (void)argv;
+    (void)argc;
+    const char *arg0 = (argc > 0 && argv && argv[0]) ? argv[0] : NULL;
 
     log_init();
     LOG("entered main");
@@ -2449,9 +2556,8 @@ int main(int argc, char **argv) {
     LOG("focus handling mode: 0x%x (%s)", R_VALUE(focusModeRc),
         R_SUCCEEDED(focusModeRc) ? "NoSuspend" : "default");
 
-    Result rc = romfsInit();
-    LOG("romfsInit: 0x%x (%s)", R_VALUE(rc), R_SUCCEEDED(rc) ? "ok" : "FAILED");
-    if (R_FAILED(rc)) return 1;
+    assets_init(arg0);
+    Result rc;
 
     appletHook(&s_focusCookie, focus_hook, NULL);
     LOG("focus hook registered (HOME / sleep)");
@@ -2513,6 +2619,12 @@ int main(int argc, char **argv) {
     }
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
+    /* Secondary setup path: if there is no user-generated package but the
+       original movie is next to the NRO, build the package once on-console. */
+    run_onconsole_prep(arg0);
+    if (!assets_has_package())
+        LOG("no asset package available; game assets will be missing");
+
     s_frame = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
                                 SDL_TEXTUREACCESS_TARGET, JB_SCREEN_W, JB_SCREEN_H);
     s_world = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
@@ -2531,19 +2643,25 @@ int main(int argc, char **argv) {
     else
         LOG("render_init ok");
 
+    if (!assets_has_package()) {
+        LOG("blocking: no asset package found");
+        show_missing_assets(renderer);
+        goto cleanup;
+    }
+
     /* Flipbook sequence: 480 little-endian uint16 indices into the intro atlas. */
     {
-        FILE *f = fopen("romfs:/intro/seq.bin", "rb");
-        if (f) {
-            fseek(f, 0, SEEK_END);
-            long size = ftell(f);
-            fseek(f, 0, SEEK_SET);
+        size_t size = 0;
+        void *seq = assets_read("intro/seq.bin", &size);
+        if (seq) {
             if (size > 0 && size % 2 == 0) {
-                s_introSeq = (Uint16 *)malloc((size_t)size);
-                if (s_introSeq && fread(s_introSeq, 1, (size_t)size, f) == (size_t)size)
+                s_introSeq = (Uint16 *)malloc(size);
+                if (s_introSeq) {
+                    memcpy(s_introSeq, seq, size);
                     s_introSeqCount = (int)(size / 2);
+                }
             }
-            fclose(f);
+            free(seq);
         }
         LOG("intro flipbook: %d steps, %d atlas frames",
             s_introSeqCount, g_res.intro.frameCount);
@@ -3186,11 +3304,15 @@ int main(int argc, char **argv) {
                        yellow selection stays put while the green cursor
                        follows the game's random-N sequence. */
                     int group = jukebox_group(s_jukeboxTrack);
-                    audio_jukebox_play_group(jukebox_group_first(group),
-                                             jukebox_group_last(group), group);
+                    /* A always jumps to the first segment of the horizontal
+                       group; never start from the highlighted column. L is the
+                       action that plays/loops exactly the highlighted cell. */
+                    int first = jukebox_group_first(group);
+                    audio_jukebox_play_group(first, jukebox_group_last(group),
+                                             group);
                     audio_play(SFX_BUTTON_CLICK);
-                    LOG("jukebox A: play group %d from track %d",
-                        group, jukebox_group_first(group));
+                    LOG("jukebox A: play group %d from first track %d "
+                        "(highlighted %d)", group, first, s_jukeboxTrack);
                 }
                 if (kDown & HidNpadButton_L) {
                     bool looping = audio_jukebox_toggle_loop(s_jukeboxTrack);
@@ -3554,6 +3676,7 @@ int main(int argc, char **argv) {
         SDL_RenderPresent(renderer);
     }
 
+cleanup:
     LOG("leaving main loop");
     quit_game();
     audio_exit();
@@ -3569,7 +3692,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < PAD_SOURCES; i++)
         if (s_pointerReady[i]) padPointerExit(&s_pointers[i]);
     appletUnhook(&s_focusCookie);
-    romfsExit();
+    assets_exit();
     if (s_resEventOpen) eventClose(&s_resEvent);
     log_exit();
     return 0;

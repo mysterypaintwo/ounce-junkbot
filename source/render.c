@@ -1,4 +1,5 @@
 #include "render.h"
+#include "assets.h"
 #include "game.h"
 #include "jb_offsets.h"
 #include "log.h"
@@ -53,27 +54,31 @@ static int entity_alpha(bool grabbed) {
     return s_dragInvalid ? 77 : 204;   /* 0.3 and 0.8 of 255 */
 }
 
-static bool load_atlas(SDL_Renderer *renderer, const char *pngPath, const char *tsvPath, Atlas *atlas) {
-    atlas->texture = IMG_LoadTexture(renderer, pngPath);
+static bool load_atlas(SDL_Renderer *renderer, const char *base, Atlas *atlas) {
+    char tsvPath[256];
+    atlas->texture = assets_load_texture(renderer, base);
     if (!atlas->texture) {
-        fprintf(stderr, "failed to load %s: %s\n", pngPath, IMG_GetError());
+        fprintf(stderr, "failed to load image %s\n", base);
         return false;
     }
     atlas->frames = calloc(1024, sizeof(Frame));
     atlas->frameCount = 0;
-    FILE *f = fopen(tsvPath, "r");
-    if (!f) {
+    snprintf(tsvPath, sizeof(tsvPath), "%s.tsv", base);
+    char *text = assets_read_text(tsvPath);
+    if (!text) {
         fprintf(stderr, "failed to load %s\n", tsvPath);
         return false;
     }
-    char line[256];
-    while (fgets(line, sizeof(line), f) && atlas->frameCount < 1024) {
+    char *save = NULL;
+    for (char *line = strtok_r(text, "\r\n", &save);
+         line && atlas->frameCount < 1024;
+         line = strtok_r(NULL, "\r\n", &save)) {
         Frame fr;
-        if (sscanf(line, "%95[^\t]\t%d\t%d\t%d\t%d", fr.name, &fr.x, &fr.y, &fr.w, &fr.h) == 5) {
+        memset(&fr, 0, sizeof(fr));
+        if (sscanf(line, "%95[^\t]\t%d\t%d\t%d\t%d", fr.name, &fr.x, &fr.y, &fr.w, &fr.h) == 5)
             atlas->frames[atlas->frameCount++] = fr;
-        }
     }
-    fclose(f);
+    free(text);
     return true;
 }
 
@@ -98,35 +103,35 @@ bool render_init(SDL_Renderer *renderer) {
         return false;
     }
     LOG("TTF_Init ok");
-    g_res.font = TTF_OpenFont("romfs:/fonts/04B_08__.TTF", UI_FONT_SIZE);
+    SDL_RWops *fontRw = assets_open_rw("fonts/04B_08__.TTF");
+    g_res.font = fontRw ? TTF_OpenFontRW(fontRw, 1, UI_FONT_SIZE) : NULL;
     if (!g_res.font) LOG("font load FAILED: %s", TTF_GetError());
     else {
         TTF_SetFontHinting(g_res.font, TTF_HINTING_MONO);
         LOG("font loaded at native %dpx, drawn at %dx", UI_FONT_SIZE, UI_FONT_SCALE);
     }
-    g_res.titleArt = IMG_LoadTexture(renderer, "romfs:/menus/neo_title.png");
-    if (!g_res.titleArt) LOG("title art FAILED: %s", IMG_GetError());
+    g_res.titleArt = assets_load_texture(renderer, "menus/neo_title");
+    if (!g_res.titleArt) LOG("title art FAILED");
     else LOG("title art loaded");
-    g_res.loadingPlaque = IMG_LoadTexture(renderer, "romfs:/menus/download_in_progress.png");
-    g_res.readyPlaque = IMG_LoadTexture(renderer, "romfs:/menus/ready_to_play.png");
-    g_res.creditsButton = IMG_LoadTexture(renderer, "romfs:/menus/credit_up.png");
-    g_res.creditsButtonHover = IMG_LoadTexture(renderer, "romfs:/menus/credit_up_x.png");
-    g_res.replayButton = IMG_LoadTexture(renderer, "romfs:/menus/replay_intro.png");
-    g_res.replayButtonHover = IMG_LoadTexture(renderer, "romfs:/menus/replay_intro_x.png");
-    g_res.skipButton = IMG_LoadTexture(renderer, "romfs:/menus/skip_intro.png");
-    g_res.skipButtonHover = IMG_LoadTexture(renderer, "romfs:/menus/skip_intro_x.png");
+    g_res.loadingPlaque = assets_load_texture(renderer, "menus/download_in_progress");
+    g_res.readyPlaque = assets_load_texture(renderer, "menus/ready_to_play");
+    g_res.creditsButton = assets_load_texture(renderer, "menus/credit_up");
+    g_res.creditsButtonHover = assets_load_texture(renderer, "menus/credit_up_x");
+    g_res.replayButton = assets_load_texture(renderer, "menus/replay_intro");
+    g_res.replayButtonHover = assets_load_texture(renderer, "menus/replay_intro_x");
+    g_res.skipButton = assets_load_texture(renderer, "menus/skip_intro");
+    g_res.skipButtonHover = assets_load_texture(renderer, "menus/skip_intro_x");
     LOG("boot plaques/buttons: %s",
         (g_res.loadingPlaque && g_res.readyPlaque && g_res.creditsButton &&
          g_res.creditsButtonHover && g_res.replayButton && g_res.skipButton)
         ? "loaded" : "some FAILED");
 
     bool ok = true;
-    ok = load_atlas(renderer, "romfs:/sprites/sprites.png", "romfs:/sprites/sprites.tsv", &g_res.sprites) && ok;
-    ok = load_atlas(renderer, "romfs:/sprites/backgrounds.png", "romfs:/sprites/backgrounds.tsv", &g_res.backgrounds) && ok;
-    ok = load_atlas(renderer, "romfs:/sprites/undercover/sprites.png", "romfs:/sprites/undercover/sprites.tsv", &g_res.undercover) && ok;
-    ok = load_atlas(renderer, "romfs:/sprites/undercover/backgrounds.png", "romfs:/sprites/undercover/backgrounds.tsv", &g_res.undercoverBackgrounds) && ok;
-    if (!load_atlas(renderer, "romfs:/intro/atlas.png", "romfs:/intro/atlas.tsv",
-                    &g_res.intro))
+    ok = load_atlas(renderer, "sprites/sprites", &g_res.sprites) && ok;
+    ok = load_atlas(renderer, "sprites/backgrounds", &g_res.backgrounds) && ok;
+    ok = load_atlas(renderer, "sprites/undercover/sprites", &g_res.undercover) && ok;
+    ok = load_atlas(renderer, "sprites/undercover/backgrounds", &g_res.undercoverBackgrounds) && ok;
+    if (!load_atlas(renderer, "intro/atlas", &g_res.intro))
         LOG("intro flipbook unavailable");
     LOG("atlases: %s", ok ? "all loaded" : "one or more FAILED");
     g_res.ready = ok;
