@@ -49,6 +49,9 @@ DEFAULT_CLONE_URL = "https://github.com/JakeSteam/junkbot-code"
 CLONE_DIR = ROOT / ".junkbot-code"
 DEFAULT_LEVELS_CLONE_URL = "https://github.com/1j01/janitorial-android"
 LEVELS_CLONE_DIR = ROOT / ".janitorial-android"
+FFMPEG_URL = os.environ.get(
+    "JUNKBOT_FFMPEG_URL",
+    "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
 RUFFLE_TAG = os.environ.get("RUFFLE_TAG", "v0.8.0")
 RUFFLE_SOURCE_URL = (
     "https://github.com/ruffle-rs/ruffle/releases/download/"
@@ -74,6 +77,44 @@ def exporter_cache_dir() -> Path:
 
 EXPORTER_CACHE = exporter_cache_dir()
 LEGACY_EXPORTER_CACHE = ROOT / ".ruffle-exporter"
+
+
+def tool_cache_dir() -> Path:
+    """User-level cache for helper binaries (portable ffmpeg on Windows)."""
+    override = os.environ.get("JUNKBOT_TOOLS_CACHE")
+    if override:
+        return Path(override).expanduser().resolve()
+    if os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA") or
+                    Path.home() / "AppData" / "Local")
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Caches"
+    else:
+        base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    return (base / "junkbot" / "tools").resolve()
+
+
+def ffmpeg_root() -> Path:
+    # Keep using the cache folder the old Windows launcher created.
+    if os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA") or
+                    Path.home() / "AppData" / "Local")
+        return (base / "JunkbotTools" / "ffmpeg").resolve()
+    return (tool_cache_dir() / "ffmpeg").resolve()
+
+
+FFMPEG_ROOT = ffmpeg_root()
+
+
+def find_ffmpeg_exe(root: Path) -> Path | None:
+    if not root.is_dir():
+        return None
+    direct = root / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
+    if direct.is_file():
+        return direct
+    matches = sorted(path for path in root.rglob("*")
+                     if path.is_file() and path.name.lower() == "ffmpeg.exe")
+    return matches[0] if matches else None
 JAVA_ROOT = EXPORTER_CACHE / "java"
 JAVA_VERSION = os.environ.get("JUNKBOT_JAVA_VERSION", "17")
 JAVA_URL = os.environ.get("JUNKBOT_JAVA_URL")
@@ -114,48 +155,122 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def check_dependencies(needs_git: bool) -> None:
+def ensure_python_deps() -> None:
+    required = (("pillow", "PIL"), ("numpy", "numpy"))
+    missing = [name for name, module in required
+               if importlib.util.find_spec(module) is None]
+    if not missing:
+        return
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "--version"],
+                       check=True, capture_output=True)
+    except (OSError, subprocess.CalledProcessError):
+        try:
+            subprocess.run([sys.executable, "-m", "ensurepip", "--upgrade"],
+                           check=True, capture_output=True)
+        except (OSError, subprocess.CalledProcessError):
+            raise SystemExit("pip is unavailable; install pillow and numpy manually")
+    cmd = [sys.executable, "-m", "pip", "install",
+           "--disable-pip-version-check", *missing]
+    if sys.prefix == sys.base_prefix:
+        cmd.append("--user")
+    print(f"python: installing {', '.join(missing)}")
+    try:
+        subprocess.run(cmd, check=True)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise SystemExit(
+            f"could not install {', '.join(missing)} automatically ({exc}). "
+            "Install them with pip, or run the generator in a virtual environment.")
+
+
+def ensure_ffmpeg() -> str | None:
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    if os.name != "nt":
+        return None
+    exe = find_ffmpeg_exe(FFMPEG_ROOT)
+    if exe is None:
+        print("ffmpeg: downloading a portable build into the user cache")
+        with tempfile.TemporaryDirectory(prefix="jb_ffmpeg_") as tmp:
+            archive = Path(tmp) / "ffmpeg.zip"
+            try:
+                download_url(FFMPEG_URL, archive, label="ffmpeg")
+                with zipfile.ZipFile(archive) as zf:
+                    members = [name for name in zf.namelist()
+                               if Path(name).name.lower() == "ffmpeg.exe"]
+                    if not members:
+                        raise ValueError("archive has no ffmpeg.exe")
+                    exe = FFMPEG_ROOT / "ffmpeg.exe"
+                    part = exe.with_suffix(".part")
+                    exe.parent.mkdir(parents=True, exist_ok=True)
+                    part.write_bytes(zf.read(members[0]))
+                    part.replace(exe)
+            except Exception as exc:
+                print(f"ffmpeg: download failed: {exc}")
+                return None
+    os.environ["PATH"] = str(exe.parent) + os.pathsep + os.environ.get("PATH", "")
+    return shutil.which("ffmpeg")
+
+
+def check_dependencies() -> None:
+    ensure_python_deps()
     missing: list[str] = []
     for module in ("PIL", "numpy"):
         if importlib.util.find_spec(module) is None:
             missing.append(module)
-    if shutil.which("ffmpeg") is None:
+    if ensure_ffmpeg() is None:
         missing.append("ffmpeg")
-    if needs_git and shutil.which("git") is None:
-        missing.append("git")
     if missing:
         raise SystemExit("missing dependencies: " + ", ".join(missing))
 
 
+def github_archive_url(url: str, ref: str) -> str:
+    base = url.strip().rstrip("/")
+    if base.endswith(".git"):
+        base = base[:-4]
+    if ref == "HEAD":
+        return f"{base}/archive/HEAD.zip"
+    return f"{base}/archive/refs/heads/{ref}.zip"
+
+
+def fetch_repo(url: str, dest: Path, expected: str, label: str) -> Path:
+    if dest.exists():
+        if (dest / expected).is_dir():
+            print(f"using cached {label} created by this script: {dest}")
+            return dest
+        raise SystemExit(f"{dest} exists but is not a valid {label} tree")
+    print(f"fetching {label} from {url}")
+    with tempfile.TemporaryDirectory(prefix="jb_repo_") as tmp:
+        temp = Path(tmp)
+        archive = temp / "source.zip"
+        error: Exception | None = None
+        for ref in ("HEAD", "main", "master"):
+            try:
+                download_url(github_archive_url(url, ref), archive, label=label)
+                error = None
+                break
+            except Exception as exc:
+                error = exc
+        if error is not None:
+            raise SystemExit(f"could not fetch {label}: {error}")
+        extracted = temp / "extracted"
+        extract_download(archive, extracted)
+        roots = [path for path in extracted.iterdir() if path.is_dir()]
+        if len(roots) != 1:
+            raise SystemExit(f"unexpected archive layout while fetching {label}")
+        shutil.move(str(roots[0]), str(dest))
+    if not (dest / expected).is_dir():
+        raise SystemExit(f"fetched {label} did not contain {expected}: {dest}")
+    return dest
+
+
 def clone_source(url: str) -> Path:
-    if CLONE_DIR.exists():
-        if (CLONE_DIR / "files").is_dir():
-            print(f"using cached source created by this script: {CLONE_DIR}")
-            return CLONE_DIR
-        raise SystemExit(f"{CLONE_DIR} exists but is not a junkbot-code tree")
-    print(f"cloning {url}")
-    subprocess.run(["git", "clone", "--depth", "1", url, str(CLONE_DIR)],
-                   check=True)
-    if not (CLONE_DIR / "files").is_dir():
-        raise SystemExit(f"clone did not look like a junkbot-code tree: {CLONE_DIR}")
-    return CLONE_DIR
+    return fetch_repo(url, CLONE_DIR, "files", "source")
 
 
 def clone_levels(url: str) -> Path:
-    if shutil.which("git") is None:
-        raise SystemExit("git is required to fetch missing level texts; "
-                         "install git or pass --levels /path/to/levels")
-    if LEVELS_CLONE_DIR.exists():
-        if (LEVELS_CLONE_DIR / "levels").is_dir():
-            print(f"using cached level source created by this script: {LEVELS_CLONE_DIR}")
-            return LEVELS_CLONE_DIR
-        raise SystemExit(f"{LEVELS_CLONE_DIR} exists but has no levels directory")
-    print(f"fetching level texts from {url}")
-    subprocess.run(["git", "clone", "--depth", "1", url, str(LEVELS_CLONE_DIR)],
-                   check=True)
-    if not (LEVELS_CLONE_DIR / "levels").is_dir():
-        raise SystemExit(f"clone did not contain a levels directory: {LEVELS_CLONE_DIR}")
-    return LEVELS_CLONE_DIR
+    return fetch_repo(url, LEVELS_CLONE_DIR, "levels", "level texts")
 
 
 def cached_exporter() -> str | None:
@@ -413,8 +528,8 @@ def safe_target(root: Path, name: str) -> Path:
     return target
 
 
-def download_url(url: str, dest: Path) -> None:
-    print(f"ruffle: downloading {url}")
+def download_url(url: str, dest: Path, label: str = "ruffle") -> None:
+    print(f"{label}: downloading {url}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     if shutil.which("curl"):
         result = subprocess.run(
@@ -659,8 +774,7 @@ def resolve_source(args: argparse.Namespace) -> tuple[str, Path]:
 def main() -> int:
     args = parse_args()
     kind, source = resolve_source(args)
-    check_dependencies(needs_git=not args.dir_path and not args.code_path and
-                       not args.source and not args.no_clone)
+    check_dependencies()
 
     intro_swf = args.intro_swf
     if kind == "dir" and intro_swf is None:
