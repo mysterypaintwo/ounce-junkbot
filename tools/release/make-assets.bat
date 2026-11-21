@@ -59,7 +59,7 @@ set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" goto :failed
 
 echo.
-echo Done. Copy junkbot.nro and junkbot.otr to the same folder on your SD card.
+echo Done. Copy junkbot.nro and junkbot.otr to SD:/switch/junkbot/ on your SD card.
 echo.
 exit /b 0
 

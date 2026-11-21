@@ -711,7 +711,7 @@ def main() -> int:
             continue
         raise SystemExit(result.returncode)
 
-    print(f"done. Copy {out.name} next to junkbot.nro on the console.")
+    print(f"done. Copy junkbot.nro and {out.name} to SD:/switch/junkbot/ on the console.")
     return 0
 
 
